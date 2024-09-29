@@ -1,50 +1,65 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
+import dynamic from 'next/dynamic'
+
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
+import 'react-quill/dist/quill.snow.css'
 
 interface NotesProps {
   lessonId: string
 }
 
 const Notes: React.FC<NotesProps> = ({ lessonId }) => {
-  const [isMounted, setIsMounted] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
-
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: '<p>Start typing your notes here...</p>',
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML()
-      localStorage.setItem(`notes_${lessonId}`, html)
-    },
-  })
+  const [content, setContent] = useState('')
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    setIsMounted(true)
-    setDebugInfo('Component mounted')
-    
+    setIsClient(true)
     const savedNotes = localStorage.getItem(`notes_${lessonId}`)
-    if (savedNotes && editor) {
-      editor.commands.setContent(savedNotes)
-      setDebugInfo(debugInfo + '\nLoaded saved notes')
+    if (savedNotes) {
+      setContent(savedNotes)
     }
-  }, [lessonId, editor])
+  }, [lessonId])
 
-  if (!isMounted) {
-    return <div>Loading notes...</div>
+  const handleChange = (value: string) => {
+    setContent(value)
+    localStorage.setItem(`notes_${lessonId}`, value)
+  }
+
+  const modules = {
+    toolbar: [
+      [{ 'header': [1, 2, false] }],
+      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+      [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
+      ['link', 'image'],
+      ['clean']
+    ],
+  }
+
+  const formats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike', 'blockquote',
+    'list', 'bullet', 'indent',
+    'link', 'image'
+  ]
+
+  if (!isClient) {
+    return <div className="bg-white p-4 rounded-lg shadow">Loading notes...</div>
   }
 
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <h3 className="text-lg font-semibold mb-2">Your Notes</h3>
-      {editor ? (
-        <EditorContent editor={editor} className="prose max-w-none border p-2 min-h-[200px]" />
-      ) : (
-        <div>Editor is initializing...</div>
-      )}
-      <div className="mt-2 text-sm text-gray-500">Debug: {debugInfo}</div>
+      <div className="quill-wrapper">
+        <ReactQuill 
+          theme="snow"
+          value={content}
+          onChange={handleChange}
+          modules={modules}
+          formats={formats}
+        />
+      </div>
     </div>
   )
 }
